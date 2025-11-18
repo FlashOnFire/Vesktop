@@ -6,25 +6,17 @@
 
 import "./screenSharePicker.css";
 
-import { closeModal, Logger, Modals, ModalSize, openModal, useAwaiter } from "@vencord/types/utils";
+import { classNameFactory } from "@vencord/types/api/Styles";
+import { CogWheel, FormSwitch, RestartIcon } from "@vencord/types/components";
+import { closeModal, Logger, Modals, ModalSize, openModal, useAwaiter, useForceUpdater } from "@vencord/types/utils";
 import { onceReady } from "@vencord/types/webpack";
-import {
-    Button,
-    Card,
-    FluxDispatcher,
-    Forms,
-    Select,
-    Switch,
-    Text,
-    UserStore,
-    useState
-} from "@vencord/types/webpack/common";
+import { Button, Card, FluxDispatcher, Forms, Select, Text, UserStore, useState } from "@vencord/types/webpack/common";
 import { Node } from "@vencord/venmic";
 import type { Dispatch, SetStateAction } from "react";
 import { MediaEngineStore } from "renderer/common";
 import { addPatch } from "renderer/patches/shared";
 import { State, useSettings, useVesktopState } from "renderer/settings";
-import { classNameFactory, isLinux, isWindows } from "renderer/utils";
+import { isLinux, isWindows } from "renderer/utils";
 
 const StreamResolutions = ["480", "720", "1080", "1440", "2160"] as const;
 const StreamFps = ["15", "30", "60"] as const;
@@ -196,73 +188,69 @@ function AudioSettingsModal({
     return (
         <Modals.ModalRoot {...modalProps} size={ModalSize.MEDIUM}>
             <Modals.ModalHeader className={cl("header")}>
-                <Forms.FormTitle tag="h2" className={cl("header-title")}>
-                    Venmic Settings
-                </Forms.FormTitle>
-                <Modals.ModalCloseButton onClick={close} />
+                <Forms.FormTitle tag="h2">Venmic Settings</Forms.FormTitle>
+                <Modals.ModalCloseButton onClick={close} className={cl("header-close-button")} />
             </Modals.ModalHeader>
-            <Modals.ModalContent className={cl("modal")}>
-                <Switch
-                    hideBorder
-                    onChange={v => (Settings.audio = { ...Settings.audio, workaround: v })}
-                    value={Settings.audio?.workaround ?? false}
-                    note={
+
+            <Modals.ModalContent className={cl("modal", "venmic-settings")}>
+                <FormSwitch
+                    title="Microphone Workaround"
+                    description={
                         <>
                             Work around an issue that causes the microphone to be shared instead of the correct audio.
                             Only enable if you're experiencing this issue.
                         </>
                     }
-                >
-                    Microphone Workaround
-                </Switch>
-                <Switch
                     hideBorder
-                    onChange={v => (Settings.audio = { ...Settings.audio, onlySpeakers: v })}
-                    value={Settings.audio?.onlySpeakers ?? true}
-                    note={
+                    onChange={v => (Settings.audio = { ...Settings.audio, workaround: v })}
+                    value={Settings.audio?.workaround ?? false}
+                />
+                <FormSwitch
+                    title="Only Speakers"
+                    description={
                         <>
                             When sharing entire desktop audio, only share apps that play to a speaker. You may want to
                             disable this when using "mix bussing".
                         </>
                     }
-                >
-                    Only Speakers
-                </Switch>
-                <Switch
                     hideBorder
-                    onChange={v => (Settings.audio = { ...Settings.audio, onlyDefaultSpeakers: v })}
-                    value={Settings.audio?.onlyDefaultSpeakers ?? true}
-                    note={
+                    onChange={v => (Settings.audio = { ...Settings.audio, onlySpeakers: v })}
+                    value={Settings.audio?.onlySpeakers ?? true}
+                />
+                <FormSwitch
+                    title="Only Default Speakers"
+                    description={
                         <>
                             When sharing entire desktop audio, only share apps that play to the <b>default</b> speakers.
                             You may want to disable this when using "mix bussing".
                         </>
                     }
-                >
-                    Only Default Speakers
-                </Switch>
-                <Switch
+                    hideBorder
+                    onChange={v => (Settings.audio = { ...Settings.audio, onlyDefaultSpeakers: v })}
+                    value={Settings.audio?.onlyDefaultSpeakers ?? true}
+                />
+                <FormSwitch
+                    title="Ignore Inputs"
+                    description={<>Exclude nodes that are intended to capture audio.</>}
                     hideBorder
                     onChange={v => (Settings.audio = { ...Settings.audio, ignoreInputMedia: v })}
                     value={Settings.audio?.ignoreInputMedia ?? true}
-                    note={<>Exclude nodes that are intended to capture audio.</>}
-                >
-                    Ignore Inputs
-                </Switch>
-                <Switch
-                    hideBorder
-                    onChange={v => (Settings.audio = { ...Settings.audio, ignoreVirtual: v })}
-                    value={Settings.audio?.ignoreVirtual ?? false}
-                    note={
+                />
+                <FormSwitch
+                    title="Ignore Virtual"
+                    description={
                         <>
                             Exclude virtual nodes, such as nodes belonging to loopbacks. This might be useful when using
                             "mix bussing".
                         </>
                     }
-                >
-                    Ignore Virtual
-                </Switch>
-                <Switch
+                    hideBorder
+                    onChange={v => (Settings.audio = { ...Settings.audio, ignoreVirtual: v })}
+                    value={Settings.audio?.ignoreVirtual ?? false}
+                />
+                <FormSwitch
+                    title="Ignore Devices"
+                    description={<>Exclude device nodes, such as nodes belonging to microphones or speakers.</>}
                     hideBorder
                     onChange={v =>
                         (Settings.audio = {
@@ -272,22 +260,25 @@ function AudioSettingsModal({
                         })
                     }
                     value={Settings.audio?.ignoreDevices ?? true}
-                    note={<>Exclude device nodes, such as nodes belonging to microphones or speakers.</>}
-                >
-                    Ignore Devices
-                </Switch>
-                <Switch
+                />
+                <FormSwitch
+                    title="Granular Selection"
+                    description={<>Allow to select applications more granularly.</>}
                     hideBorder
                     onChange={value => {
                         Settings.audio = { ...Settings.audio, granularSelect: value };
                         setAudioSources("None");
                     }}
                     value={Settings.audio?.granularSelect ?? false}
-                    note={<>Allow to select applications more granularly.</>}
-                >
-                    Granular Selection
-                </Switch>
-                <Switch
+                />
+                <FormSwitch
+                    title="Device Selection"
+                    description={
+                        <>
+                            Allow to select devices such as microphones. Requires <b>Ignore Devices</b> to be turned
+                            off.
+                        </>
+                    }
                     hideBorder
                     onChange={value => {
                         Settings.audio = { ...Settings.audio, deviceSelect: value };
@@ -295,15 +286,7 @@ function AudioSettingsModal({
                     }}
                     value={Settings.audio?.deviceSelect ?? false}
                     disabled={Settings.audio?.ignoreDevices}
-                    note={
-                        <>
-                            Allow to select devices such as microphones. Requires <b>Ignore Devices</b> to be turned
-                            off.
-                        </>
-                    }
-                >
-                    Device Selection
-                </Switch>
+                />
             </Modals.ModalContent>
             <Modals.ModalFooter className={cl("footer")}>
                 <Button color={Button.Colors.TRANSPARENT} onClick={close}>
@@ -365,7 +348,7 @@ function StreamSettingsUi({
     );
 
     const openSettings = () => {
-        const key = openModal(props => (
+        openModal(props => (
             <AudioSettingsModal
                 modalProps={props}
                 close={() => props.onClose()}
@@ -427,14 +410,13 @@ function StreamSettingsUi({
                             </div>
                         </div>
                         {isWindows && (
-                            <Switch
+                            <FormSwitch
+                                title="Stream With Audio"
+                                hideBorder
                                 value={settings.audio}
                                 onChange={checked => setSettings(s => ({ ...s, audio: checked }))}
-                                hideBorder
                                 className={cl("audio")}
-                            >
-                                Stream With Audio
-                            </Switch>
+                            />
                         )}
                     </section>
                 </div>
@@ -585,8 +567,10 @@ function AudioSourcePickerLinux({
     setIncludeSources: (s: AudioSources) => void;
     setExcludeSources: (s: AudioSources) => void;
 }) {
+    const [audioSourcesSignal, refreshAudioSources] = useForceUpdater(true);
     const [sources, _, loading] = useAwaiter(() => VesktopNative.virtmic.list(), {
-        fallbackValue: { ok: true, targets: [], hasPipewirePulse: true }
+        fallbackValue: { ok: true, targets: [], hasPipewirePulse: true },
+        deps: [audioSourcesSignal]
     });
 
     const hasPipewirePulse = sources.ok ? sources.hasPipewirePulse : true;
@@ -637,7 +621,7 @@ function AudioSourcePickerLinux({
 
     return (
         <>
-            <div className={cl({ quality: includeSources === "Entire System" })}>
+            <div className={cl("audio-sources")}>
                 <section>
                     <Forms.FormTitle>{loading ? "Loading Sources..." : "Audio Sources"}</Forms.FormTitle>
                     <Select
@@ -673,9 +657,20 @@ function AudioSourcePickerLinux({
                     </section>
                 )}
             </div>
-            <Button color={Button.Colors.TRANSPARENT} onClick={openSettings} className={cl("settings-button")}>
-                Open Audio Settings
-            </Button>
+            <div className={cl("settings-buttons")}>
+                <Button
+                    color={Button.Colors.TRANSPARENT}
+                    onClick={refreshAudioSources}
+                    className={cl("settings-button")}
+                >
+                    <RestartIcon className={cl("settings-button-icon")} />
+                    Refresh Audio Sources
+                </Button>
+                <Button color={Button.Colors.TRANSPARENT} onClick={openSettings} className={cl("settings-button")}>
+                    <CogWheel className={cl("settings-button-icon")} />
+                    Open Audio Settings
+                </Button>
+            </div>
         </>
     );
 }

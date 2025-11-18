@@ -6,8 +6,9 @@
 
 import "./settings.css";
 
+import { classNameFactory } from "@vencord/types/api/Styles";
 import { ErrorBoundary } from "@vencord/types/components";
-import { Forms, Switch, Text } from "@vencord/types/webpack/common";
+import { Forms, Text } from "@vencord/types/webpack/common";
 import { ComponentType } from "react";
 import { Settings, useSettings } from "renderer/settings";
 import { isMac, isWindows } from "renderer/utils";
@@ -16,6 +17,9 @@ import { AutoStartToggle } from "./AutoStartToggle";
 import { DeveloperOptionsButton } from "./DeveloperOptions";
 import { DiscordBranchPicker } from "./DiscordBranchPicker";
 import { NotificationBadgeToggle } from "./NotificationBadgeToggle";
+import { Updater } from "./Updater";
+import { UserAssetsButton } from "./UserAssets";
+import { VesktopSettingsSwitch } from "./VesktopSettingsSwitch";
 import { WindowsTransparencyControls } from "./WindowsTransparencyControls";
 
 interface BooleanSetting {
@@ -26,6 +30,8 @@ interface BooleanSetting {
     disabled?(): boolean;
     invisible?(): boolean;
 }
+
+export const cl = classNameFactory("vcd-settings-");
 
 export type SettingsComponent = ComponentType<{ settings: typeof Settings.store }>;
 
@@ -38,6 +44,14 @@ const SettingsOptions: Record<string, Array<BooleanSetting | SettingsComponent>>
             title: "Hardware Acceleration",
             description: "Enable hardware acceleration",
             defaultValue: true
+        },
+        {
+            key: "hardwareVideoAcceleration",
+            title: "Video Hardware Acceleration",
+            description:
+                "Enable hardware video acceleration. This can improve performance of screenshare and video playback, but may cause graphical glitches and infinitely loading streams.",
+            defaultValue: false,
+            disabled: () => Settings.store.hardwareAcceleration === false
         }
     ],
     "User Interface": [
@@ -73,7 +87,8 @@ const SettingsOptions: Record<string, Array<BooleanSetting | SettingsComponent>>
             description: "Adapt the splash window colors to your custom theme",
             defaultValue: true
         },
-        WindowsTransparencyControls
+        WindowsTransparencyControls,
+        UserAssetsButton
     ],
     Behaviour: [
         {
@@ -132,32 +147,34 @@ const SettingsOptions: Record<string, Array<BooleanSetting | SettingsComponent>>
 function SettingsSections() {
     const Settings = useSettings();
 
-    const sections = Object.entries(SettingsOptions).map(([title, settings]) => (
-        <Forms.FormSection
-            title={title}
-            key={title}
-            className="vcd-settings-section"
-            titleClassName="vcd-settings-title"
-        >
-            {settings.map(Setting => {
-                if (typeof Setting === "function") return <Setting settings={Settings} />;
+    const sections = Object.entries(SettingsOptions).map(([title, settings], i, arr) => (
+        <div key={title} className={cl("category")}>
+            <Text variant="heading-lg/semibold" color="header-primary" className={cl("category-title")}>
+                {title}
+            </Text>
 
-                const { defaultValue, title, description, key, disabled, invisible } = Setting;
-                if (invisible?.()) return null;
+            <div className={cl("category-content")}>
+                {settings.map(Setting => {
+                    if (typeof Setting === "function") return <Setting settings={Settings} />;
 
-                return (
-                    <Switch
-                        value={Settings[key as any] ?? defaultValue}
-                        onChange={v => (Settings[key as any] = v)}
-                        note={description}
-                        disabled={disabled?.()}
-                        key={key}
-                    >
-                        {title}
-                    </Switch>
-                );
-            })}
-        </Forms.FormSection>
+                    const { defaultValue, title, description, key, disabled, invisible } = Setting;
+                    if (invisible?.()) return null;
+
+                    return (
+                        <VesktopSettingsSwitch
+                            title={title}
+                            description={description}
+                            value={Settings[key as any] ?? defaultValue}
+                            onChange={v => (Settings[key as any] = v)}
+                            disabled={disabled?.()}
+                            key={key}
+                        />
+                    );
+                })}
+            </div>
+
+            {i < arr.length - 1 && <Forms.FormDivider className={cl("category-divider")} />}
+        </div>
     ));
 
     return <>{sections}</>;
@@ -166,13 +183,13 @@ function SettingsSections() {
 export default ErrorBoundary.wrap(
     function SettingsUI() {
         return (
-            <Forms.FormSection>
-                <Text variant="heading-lg/semibold" style={{ color: "var(--header-primary)" }} tag="h2">
+            <section>
+                <Text variant="heading-xl/semibold" color="header-primary" className={cl("title")}>
                     Vesktop Settings
                 </Text>
-
+                <Updater />
                 <SettingsSections />
-            </Forms.FormSection>
+            </section>
         );
     },
     {
